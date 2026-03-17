@@ -1,0 +1,54 @@
+logging:
+  level: "INFO"
+  show_progress: true
+  hide_http_requests: true
+  file_logging: true
+  console_logging: true
+
+model:
+  # embedding_model_hf: "nomic-ai/nomic-embed-text-v1.5"
+  embedding_model_hf: "BAAI/bge-m3"
+  rerank_model: "BAAI/bge-reranker-v2-m3"
+  device_rerank: "cpu"
+  device: "cpu"
+
+ingestion : 
+  ignore_columns: None
+
+processing:
+  TOC_text: "Table of Contents"
+  headers_to_split_on:
+    - ["##", "Header 2"]
+    - ["###", "Header 3"]
+    - ["####", "Header 4"]
+  headers_keys: {"Header 1":"# ", "Header 2":"## ", "Header 3":"### ", "Header 4":"#### "}
+  OMP_NUM_THREADS: 8
+  chunk_size: 2000
+  chunk_overlap: 100
+  batch_size_embeddings: 128
+  batch_size_reranking: 16
+  split_documents: true
+
+paths:
+  cache_dir: "./cache"
+  data_dir: "./data"
+  log_dir: "./logs"
+
+files:
+  document_paths:
+    - "./data/raw"
+  test_data: "./data/raw/test.csv"
+  test_output: "./data/raw/submission.csv"
+
+
+  train_data: "./data/raw/train.csv"
+  test_data: "./data/raw/test.csv"
+  train_results: "./data/raw/train_results.csv"
+  test_results: "./data/raw/test_results.csv"
+
+
+
+
+ollama:
+  model_name: "llama3.1:8b"
+  base_url: "http://host.docker.internal:11434"

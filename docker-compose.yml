@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: postgres-rag
+    environment:
+      POSTGRES_DB: rag_system
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: rag_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d rag_system"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: rag-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://rag_user:rag_password@postgres:5432/rag_system
+      BACKEND_URL: http://backend:8000
+      OLLAMA_HOST: http://host.docker.internal:11434
+      # Database connection pool settings for performance
+      DATABASE_POOL_SIZE: 5
+      DATABASE_MAX_CONNECTIONS: 20
+      DATABASE_TIMEOUT: 10
+      # Maximize CPU utilization
+      OMP_NUM_THREADS: 8
+      OPENBLAS_NUM_THREADS: 8
+      MKL_NUM_THREADS: 8
+      VECLIB_MAXIMUM_THREADS: 8
+      NUMEXPR_NUM_THREADS: 8
+    volumes:
+      - ./cache:/app/cache
+      - ./data:/app/data
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'      # Use all 8 CPU cores on Mac
+          memory: 12G      # Increased memory for parallel processing
+        reservations:
+          cpus: '4.0'      # Reserve 4 CPU cores
+          memory: 4G       # Reserve 4GB RAM
+    networks:
+      - rag_network
+
+  # Streamlit Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: rag-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      BACKEND_URL: http://backend:8000
+      DATABASE_URL: postgresql://rag_user:rag_password@postgres:5432/rag_system
+    volumes:
+      - ./cache:/app/cache
+      - ./data:/app/data
+    depends_on:
+      - backend
+      - postgres
+    networks:
+      - rag_network
+
+# Network and volumes
+networks:
+  rag_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
