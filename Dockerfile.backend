@@ -1,0 +1,39 @@
+# Dockerfile for FastAPI Backend
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for caching
+COPY src/backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend code
+COPY src/backend/ .
+COPY src/database/ src/database/
+COPY src/retrieval/ src/retrieval/
+COPY src/models/ src/models/
+COPY src/response/ src/response/
+COPY src/cache/ src/cache/
+COPY src/data/ src/data/
+COPY src/utils/ src/utils/
+COPY initialize_rag.py .
+COPY config/ config/
+
+# Environment variables
+ENV PYTHONPATH=/app
+ENV DATABASE_URL=postgresql://rag_user:rag_password@postgres:5432/rag_system
+ENV BACKEND_URL=http://backend:8000
+ENV OLLAMA_HOST=http://host.docker.internal:11434
+
+# Expose port
+EXPOSE 8000
+
+# Start backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
